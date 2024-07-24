@@ -60,6 +60,12 @@ class Commande(models.Model):
         articles = self.commandearticle_set.all()
         total = sum(article.quantite for article in articles)
         return total 
+    @property
+    def produit_pysique(self):
+        articles = self.commandearticle_set.all()
+        au_moins_un_produit_physique = any(article.produit.digital==False for article in articles)
+        return au_moins_un_produit_physique
+        
  
     
 class CommandeArticle(models.Model):

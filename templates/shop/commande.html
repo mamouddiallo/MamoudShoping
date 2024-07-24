@@ -42,6 +42,10 @@
             </form>
         </div>
         <br>
+        <div class="box-element hidden" id="payment-info">
+            <small>Option Paypal</small>
+            <button class="btn w-100 btn-success btn-block" id="make-payment"> Effectuer le paiement</button>
+        </div>
     </div>
     <div class="col-lg-6">
         <div class="box-element">
@@ -68,4 +72,36 @@
         
     </div>
 </div>
+
+<script type="text/javascript">
+    var produitPhysique = "{{commande.produit_pysique}}";
+
+    if (produitPhysique == "False"){
+        document.getElementById('shipping-info').innerHTML = '';
+    }
+
+    if ( user != "AnonymousUser"){
+        document.getElementById("user-info").innerHTML = '';
+    }
+    if (produitPhysique == "False" && user != "AnonymousUser"){
+        document.getElementById("form-wrapper").innerHTML = '';
+        document.getElementById("payment-info").classList.remove('hidden');
+
+    }
+    var form = document.getElementById('form');
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        console.log('donnee en cours')
+        document.getElementById('form-button').classList.add('hidden');
+        document.getElementById('payment-info').classList.remove('hidden');
+    })
+    document.getElementById('make-payment').addEventListener('click', function(e) {
+        submitFormData();
+        
+    })
+    function submitFormData() {
+        console.log("Traitement commande en cours ");
+    }
+</script>
+
 {% endblock content %}

@@ -11,11 +11,35 @@ def shop(request, *args, **kwargs):
     
     # Récupère tous les objets de type Produit depuis la base de données
     produits = Produit.objects.all()
+     # Vérifie si l'utilisateur est authentifié
+    if request.user.is_authenticated:
+        # Récupère l'objet client associé à l'utilisateur connecté
+        client = request.user.client
+        
+        # Récupère ou crée une commande pour le client qui n'est pas encore complétée
+        commande, created = Commande.objects.get_or_create(client=client, complete=False)
+        
+        # Récupère tous les articles associés à la commande en cours
+        nombre_article = commande.get_panier_article 
+    else:
+        # Si l'utilisateur n'est pas connecté, initialise une liste d'articles vide
+        articles = []
+        
+        # Initialise un dictionnaire pour représenter une commande vide
+        commande = {
+            'get_panier_total': 0,
+            'get_panier_article': 0
+        }
+        nombre_article = commande['get_panier_article']
+    
+    # Crée un contexte avec les articles et la commande à passer au template
+    context = {
+        'produits': produits,
+        'nombre_article':nombre_article
+    }
     
     # Crée un dictionnaire de contexte contenant la liste des produits
-    context = {
-        'produits': produits
-    }
+   
     
     # Rend le template 'shop/index.html' avec le contexte fourni
     return render(request, 'shop/index.html', context)
@@ -34,6 +58,8 @@ def panier(request, *args, **kwargs):
         
         # Récupère tous les articles associés à la commande en cours
         articles = commande.commandearticle_set.all()
+        nombre_article = commande.get_panier_article 
+
     else:
         # Si l'utilisateur n'est pas connecté, initialise une liste d'articles vide
         articles = []
@@ -43,11 +69,13 @@ def panier(request, *args, **kwargs):
             'get_panier_total': 0,
             'get_panier_article': 0
         }
+        nombre_article = commande['get_panier_article']
     
     # Crée un contexte avec les articles et la commande à passer au template
     context = {
         'articles': articles,
-        'commande': commande
+        'commande': commande,
+        'nombre_article':nombre_article
     }
     
     # Rend le template 'shop/panier.html' avec le contexte fourni
@@ -71,6 +99,7 @@ def commande(request, *args, **kwargs):
         
         # Récupère tous les articles associés à la commande en cours
         articles = commande.commandearticle_set.all()
+        nombre_article = commande.get_panier_article 
     else:
         # Si l'utilisateur n'est pas connecté, initialise une liste d'articles vide
         articles = []
@@ -80,11 +109,13 @@ def commande(request, *args, **kwargs):
             'get_panier_total': 0,
             'get_panier_article': 0
         }
+        nombre_article = commande['get_panier_article']
     
     # Crée un contexte avec les articles et la commande à passer au template
     context = {
         'articles': articles,
-        'commande': commande
+        'commande': commande,
+        'nombre_article':nombre_article
     }
     
     # Rend le template 'shop/commande.html' avec le contexte fourni
