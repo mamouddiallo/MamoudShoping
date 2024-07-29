@@ -100,8 +100,54 @@
         
     })
     function submitFormData() {
-        console.log("Traitement commande en cours ");
+        var total = parseFloat("{{commande.get_panier_total}}");
+        var userFormData = {
+        'name': null,
+        'username': null,
+        'phone': null,
+        'email': null,
+        'total': total,
     }
-</script>
+
+    var shippingUserInfo = {
+        'address': null,
+        'city': null,
+        'state': null,
+        'zipcode': null,
+    }
+
+    if (produitPhysique != "False") {
+        shippingUserInfo.address = form.address.value;
+        shippingUserInfo.city = form.city.value;
+        shippingUserInfo.state = form.state.value;
+        shippingUserInfo.zipcode = form.zipcode.value;
+    }
+
+    if (user == "anonymousUser") {
+        userFormData.name = form.name.value;
+        userFormData.username = form.username.value;
+        userFormData.phone = form.phone.value;
+        userFormData.email = form.email.value;
+    }
+
+    var url = '/traitement_commande/';
+    fetch(url, {
+        method: "POST",
+        headers : {
+            "Content-Type": "application/json",
+            "X-CSRFToken" : csrftoken
+        },
+        body:JSON.stringify({"form": userFormData, "shipping":shippingUserInfo})
+    })
+    .then((response) => {
+        return response.json();
+    })
+    .then((data) => {
+        console.log('data', data);
+        alert("traitement commande termine");
+        window.location.href = "{% url 'shop:shop'%}";
+    })
+    }
+</script> 
 
 {% endblock content %}
