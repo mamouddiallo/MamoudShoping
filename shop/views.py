@@ -4,6 +4,7 @@ import json
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.contrib.auth.decorators import login_required 
 from datetime import datetime
+from.utiles import data_cookie, panier_cookie
 
 # Create your views here.
 
@@ -12,34 +13,17 @@ def shop(request, *args, **kwargs):
     
     # Récupère tous les objets de type Produit depuis la base de données
     produits = Produit.objects.all()
-     # Vérifie si l'utilisateur est authentifié
-    if request.user.is_authenticated:
-        # Récupère l'objet client associé à l'utilisateur connecté
-        client = request.user.client
-        
-        # Récupère ou crée une commande pour le client qui n'est pas encore complétée
-        commande, created = Commande.objects.get_or_create(client=client, complete=False)
-        
-        # Récupère tous les articles associés à la commande en cours
-        nombre_article = commande.get_panier_article 
-    else:
-        # Si l'utilisateur n'est pas connecté, initialise une liste d'articles vide
-        articles = []
-        
-        # Initialise un dictionnaire pour représenter une commande vide
-        commande = {
-            'get_panier_total': 0,
-            'get_panier_article': 0
-        }
-        nombre_article = commande['get_panier_article']
+    
+    data = data_cookie(request)
+    articles = data['articles']
+    commande = data['commande']
+    nombre_article = data['nombre_article']
     
     # Crée un contexte avec les articles et la commande à passer au template
     context = {
         'produits': produits,
         'nombre_article':nombre_article
     }
-    
-    # Crée un dictionnaire de contexte contenant la liste des produits
    
     
     # Rend le template 'shop/index.html' avec le contexte fourni
@@ -49,28 +33,10 @@ def shop(request, *args, **kwargs):
 def panier(request, *args, **kwargs):
     """ Affiche le contenu du panier de l'utilisateur connecté. """
     
-    # Vérifie si l'utilisateur est authentifié
-    if request.user.is_authenticated:
-        # Récupère l'objet client associé à l'utilisateur connecté
-        client = request.user.client
-        
-        # Récupère ou crée une commande pour le client qui n'est pas encore complétée
-        commande, created = Commande.objects.get_or_create(client=client, complete=False)
-        
-        # Récupère tous les articles associés à la commande en cours
-        articles = commande.commandearticle_set.all()
-        nombre_article = commande.get_panier_article 
-
-    else:
-        # Si l'utilisateur n'est pas connecté, initialise une liste d'articles vide
-        articles = []
-        
-        # Initialise un dictionnaire pour représenter une commande vide
-        commande = {
-            'get_panier_total': 0,
-            'get_panier_article': 0
-        }
-        nombre_article = commande['get_panier_article']
+    data = data_cookie(request)
+    articles = data['articles']
+    commande = data['commande']
+    nombre_article = data['nombre_article']
     
     # Crée un contexte avec les articles et la commande à passer au template
     context = {
@@ -90,27 +56,11 @@ def commande(request, *args, **kwargs):
     Si l'utilisateur n'est pas connecté, initialise un panier vide.
     """
     
-    # Vérifie si l'utilisateur est authentifié
-    if request.user.is_authenticated:
-        # Récupère l'objet client associé à l'utilisateur connecté
-        client = request.user.client
+    data = data_cookie(request)
+    articles = data['articles']
+    commande = data['commande']
+    nombre_article = data['nombre_article']
         
-        # Récupère ou crée une commande pour le client qui n'est pas encore complétée
-        commande, created = Commande.objects.get_or_create(client=client, complete=False)
-        
-        # Récupère tous les articles associés à la commande en cours
-        articles = commande.commandearticle_set.all()
-        nombre_article = commande.get_panier_article 
-    else:
-        # Si l'utilisateur n'est pas connecté, initialise une liste d'articles vide
-        articles = []
-        
-        # Initialise un dictionnaire pour représenter une commande vide
-        commande = {
-            'get_panier_total': 0,
-            'get_panier_article': 0
-        }
-        nombre_article = commande['get_panier_article']
     
     # Crée un contexte avec les articles et la commande à passer au template
     context = {
@@ -168,36 +118,59 @@ def update_article(request, *args, **kwargs):
         commande_article.delete()        
 
     return JsonResponse("Article ajouté", safe=False)
+def commandeAnonyme(request, data):
+    name = data['form']['name']
+    username = data['form']['username']
+    email = data['form']['email']
+    phone = data['form']['phone']
+    
+    cookie_panier = panier_cookie(request)
+    articles = cookie_panier['articles']
+    client, created = Client.objects.get_or_create(
+        email = email
+    )
+    client.name = name
+    client.save()
+    commande = Commande.objects.create(
+        client = client
+    )
+    
+    for article in articles:
+        produit = Produit.objects.get(id=article['produit']['pk'])
+        
+        CommandeArticle.objects.create(
+            produit = produit,
+            commande = commande, 
+            quantite= article['quantite']
+        )
 
+    return client, commande
 def traitement_commande(request, *args, **kargs):
     
-   
-    
     transaction_id = datetime.now().timestamp()
+    data = json.loads(request.body)
     if request.user.is_authenticated:
-        data = json.loads(request.body)
+        
         client = request.user.client
         commande, created = Commande.objects.get_or_create(client=client, complete=False)
-        total = float(data['form']['total'])
-        commande.transaction_id = transaction_id
-        if commande.get_panier_total == total:
-            commande.complete = True
-        commande.save()
-        
-        if commande.produit_pysique:
-            AddressChipping.objects.create(
-                client=client,
-                commande = commande,
-                addresse = data['shipping']['address'],
-                ville = data['shipping']['City'],
-                zipcode = data['shipping']['Zipcode']
-            )
     else:
-            try:
-                panier = json.loads(request.COOKIES.get('panier'))
-            except:
-                panier = {}
-            print(panier)
+          client, commande = commandeAnonyme(request, data)
+    total = float(data['form']['total'])
+    commande.transaction_id = transaction_id
+    if commande.get_panier_total == total:
+        commande.complete = True
+    commande.save()
+    
+    if commande.produit_pysique:
+
+        AddressChipping.objects.create(
+            client=client,
+            commande=commande,
+            addresse = data['shipping']['address'],
+            ville=data['shipping']['city'],
+            zipcode=data['shipping']['zipcode']
+)
+
     return JsonResponse("Traitement complet", safe=False)
 
 
