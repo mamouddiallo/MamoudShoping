@@ -146,19 +146,26 @@ def commandeAnonyme(request, data):
 
     return client, commande
 def traitement_commande(request, *args, **kargs):
-    
+    STATUS_TRANSACTION = ['ACCEPTED', 'COMPLETED', 'SUCCESS']
     transaction_id = datetime.now().timestamp()
     data = json.loads(request.body)
     if request.user.is_authenticated:
-        
         client = request.user.client
         commande, created = Commande.objects.get_or_create(client=client, complete=False)
     else:
           client, commande = commandeAnonyme(request, data)
     total = float(data['form']['total'])
-    commande.transaction_id = transaction_id
+    print(data)
+    commande.transaction_id = data['payment_info']['transaction_id']
+    commande.total_trans = total
     if commande.get_panier_total == total:
         commande.complete = True
+        commande.status = data['payment_info']['status']
+        commande.save()
+    else:
+        commande.status = "REFUSED"
+        commande.save()
+        return JsonResponse("Attention Traitement refuse Fraude detecté", safe=False)
     commande.save()
     
     if commande.produit_pysique:
@@ -169,8 +176,10 @@ def traitement_commande(request, *args, **kargs):
             addresse = data['shipping']['address'],
             ville=data['shipping']['city'],
             zipcode=data['shipping']['zipcode']
-)
-
-    return JsonResponse("Traitement complet", safe=False)
+        )   
+        if not commande.status in STATUS_TRANSACTION:
+            return JsonResponse("Desolé le paiement a echoue veillez reessayer")
+        
+    return JsonResponse("Commande effectuer avec success vous seriez Livrez dans un delaie d'un jour.", safe=False)
 
 

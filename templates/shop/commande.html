@@ -45,6 +45,9 @@
         <br>
         <div class="box-element hidden" id="payment-info">
             <small>Veillez choisir le mode de paiement</small>
+            <center class="bg-info my-3"><button  class= "btn btn-block" onclick="checkout()">
+                <img src="{% static 'images/LogoCinetPay.png'%}">
+            </button></center>
             <div id="paypal-button-container"></div>
 
            <!-- <button class="btn w-100 btn-success btn-block" id="make-payment"> Effectuer le paiement</button>  -->
@@ -59,7 +62,7 @@
         {% for article in articles %}
 
             <div class="panier-row">
-                <div style="flex:2"><img class="row-image" src="{{article.produit.imageUrl}}" alt=""></div>
+                <div style="flex:2"><img class="row-image" src="{{article.produit.imageUrl}}" class="row-image" alt=""></div>
                 <div style="flex:2">{{article.produit.name}}</div>
                 <div style="flex:1">${{article.produit.price}}</div>
                 <div style="flex:1">{{article.quantite}}</div>
@@ -73,25 +76,61 @@
         
     </div>
 </div>
+<script>
+    var total = parseFloat('{{commande.get_panier_total}}').toFixed(2);
+    function checkout() {
+        CinetPay.setConfig({
+            apikey: '1490631366bb3f4a825803.58745261',//   YOUR APIKEY
+            site_id: '5877805',//YOUR_SITE_ID
+            notify_url: 'http://mondomaine.com/notify/',
+            mode: 'TEST'
+        });
+        CinetPay.getCheckout({
+            transaction_id: Math.floor(Math.random() * 100000000).toString(), // YOUR TRANSACTION ID
+            amount: total,
+            currency: 'XAF',
+            channels: 'ALL',
+            description: 'MamoudShopping',   
+            
+
+        });
+        CinetPay.waitResponse(function(data) {
+            submitFormData(data.operator_id, data.status);
+            if (data.status == "REFUSED") {
+                if (alert("Votre paiement a échoué")) {
+                    window.location.reload();
+                }
+            } else if (data.status == "ACCEPTED") {
+                if (alert("Votre paiement a été effectué avec succès")) {
+                    window.location.reload();
+                }
+            }
+        });
+        CinetPay.onError(function(data) {
+            console.log(data);
+        });
+    }
+</script>
+
   <!-- Include the PayPal JavaScript SDK -->
-  <script src="https://www.paypal.com/sdk/js?client-id=test&currency=USD"></script>
+  <script src="https://www.paypal.com/sdk/js?client-id=Adr_5hgOhKcUAibzU2dTRMnp__NN72BHfE80HPdOpfOgmmHvOEFYCOqwMJNzKCJF9F5L25CDeY_TbQ48&currency=USD"></script>
   <script>
     // Render the PayPal button into #paypal button - container
+    var total = parseFloat('{{commande.get_panier_total}}').toFixed(2);
     paypal.Buttons({
         style: {
             color: 'blue',
             shape: 'rect',
-        
         },
         // Set up the transaction
         createOrder: function (data, actions) {
             return actions.order.create({
                 purchase_units: [{
                     amount: {
-                        value:'88.44'
+                        value: total
                     }
                 }]
-            });
+            }); 
             
         },
 
@@ -101,7 +140,7 @@
                 // Successful capture For demo purposes:
                 console.log ('Capture result', orderData, JSON.stringify(orderData, null, 2));
                 var transaction = orderData.purchase_units[0].payments.captures[0];
-                alert('Transaction' + transaction.status + ':' + transaction.id + '\n\nSee console for all available details');
+                submitFormData(transaction.id, transaction.status);
                 // Replace the above to  show a success message within this page, e.g.
                 // const element = document.getElementById('paypal-button-container');
                 //element.innerHTML = '';
@@ -140,7 +179,12 @@
     //    submitFormData();
         
     //})
-    function submitFormData() {
+    function submitFormData(transaction_id, status) {
+        var paymentInfo = {
+            'transaction_id': transaction_id,
+            'status': status,
+            'total' : total
+        }
         var total = parseFloat("{{commande.get_panier_total}}");
         var userFormData = {
         'name': null,
@@ -178,14 +222,16 @@
             "Content-Type": "application/json",
             "X-CSRFToken" : csrftoken
         },
-        body:JSON.stringify({"form": userFormData, "shipping":shippingUserInfo})
+        body:JSON.stringify({"form": userFormData, "shipping":shippingUserInfo, 'payment_info':paymentInfo})
     })
     .then((response) => {
         return response.json();
     })
     .then((data) => {
         console.log('data', data);
-        alert("traitement commande termine");
+       alert("paient effectué avec succes")
+      
+
         panier = {};
         document.cookie = "panier=" + JSON.stringify(panier) + ";domain=;path=/";
         window.location.href = "{% url 'shop:shop'%}";
